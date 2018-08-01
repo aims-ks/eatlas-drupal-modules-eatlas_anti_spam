@@ -1,0 +1,14 @@
+name = eAtlas Anti-spam
+description = Protect the contact form from spam.
+core = 7.x
+
+stylesheets[all][] = css/eatlas_anti_spam.css
+files[] = eatlas_anti_spam.module
+
+package = eAtlas
+
+; Attributes used by the update module.
+; There fields needs to be removed if the module is migrated to Drupal.org
+project status url = "http://drupal.eatlas.org.au/modules/eatlas"
+version = "7.x-0.1"
+project = "eatlas_anti_spam"

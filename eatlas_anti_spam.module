@@ -1,0 +1,41 @@
+<?php
+/**
+ * Inspired from:
+ *   https://drupal.stackexchange.com/questions/71659/submit-handler-prevent-other-handlers-from-running-in-certain-circumstances-onl
+ */
+
+/**
+ * Implements hook_form_FORM_ID_alter
+ * FORM_ID = contact_site_form
+ *   https://api.drupal.org/api/drupal/modules%21system%21system.api.php/function/hook_form_FORM_ID_alter/7.x
+ *
+ * Form API:
+ *   https://api.drupal.org/api/drupal/developer%21topics%21forms_api_reference.html/7.x
+ **/
+function eatlas_anti_spam_form_contact_site_form_alter(&$form, &$form_state, $form_id) {
+	$form['eatlas_message_title'] = array(
+		'#type' => 'textfield',
+		'#maxlength' => 20,
+		'#title' => t('Message title'),
+		'#weight' => -1
+	);
+
+	$form_state['original_submit_handlers'] = $form['#submit'];
+
+	// Anti spam validation is the first submit function called
+	$form['#submit'] = array('_eatlas_anti_spam_contact_form_submit');
+}
+
+function _eatlas_anti_spam_contact_form_submit($form, &$form_state) {
+	if (isset($form_state['values']['eatlas_message_title']) && !empty($form_state['values']['eatlas_message_title'])) {
+		watchdog("eatlas_anti_spam", "SPAM: <pre>" . check_plain(print_r($form_state['values'], TRUE)) . "</pre>");
+		$form_state['redirect'] = '';
+	} else {
+		// Everything is normal, execute the original contact form handlers.
+		$form['#submit'] = $form_state['original_submit_handlers'];
+		form_execute_handlers('submit', $form, $form_state);
+	}
+}
+
+
+?>
