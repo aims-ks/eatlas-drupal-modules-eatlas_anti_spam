@@ -1,4 +1,7 @@
 <?php
+// Used for captcha
+drupal_session_start();
+
 /**
  * Inspired from:
  *   https://drupal.stackexchange.com/questions/71659/submit-handler-prevent-other-handlers-from-running-in-certain-circumstances-onl
@@ -20,10 +23,49 @@ function eatlas_anti_spam_form_contact_site_form_alter(&$form, &$form_state, $fo
 		'#weight' => -1
 	);
 
+	if (!isset($_SESSION['eatlas_captcha_question']) ||
+		!isset($_SESSION['eatlas_captcha_answer'])) {
+
+		$int1 = rand(10, 100);
+		$int2 = rand(10, 100);
+		$_SESSION['eatlas_captcha_question'] = t('What is @int1 plus @int2?', array(
+			'@int1' => $int1,
+			'@int2' => $int2
+		));
+		$_SESSION['eatlas_captcha_answer'] = (string)($int1 + $int2);
+	}
+	$form['eatlas_captcha'] = array(
+		'#type' => 'textfield',
+		'#maxlength' => 20,
+		'#title' => t('Captcha'),
+		'#description' => $_SESSION['eatlas_captcha_question'],
+		'#required' => TRUE
+	);
+
 	$form_state['original_submit_handlers'] = $form['#submit'];
+
+	// Validate the form captcha
+	$form['#validate'][] = '_eatlas_anti_spam_contact_form_validate';
 
 	// Anti spam validation is the first submit function called
 	$form['#submit'] = array('_eatlas_anti_spam_contact_form_submit');
+}
+
+function _eatlas_anti_spam_contact_form_validate($form, &$form_state) {
+	$captcha_value = NULL;
+	if (isset($form_state['values']['eatlas_captcha']) && !empty($form_state['values']['eatlas_captcha'])) {
+		$captcha_value = $form_state['values']['eatlas_captcha'];
+	}
+
+	if ($captcha_value !== $_SESSION['eatlas_captcha_answer']) {
+		// The user failed to answer the Captcha.
+		// Show an error message
+		form_set_error('eatlas_captcha', 'Wrong captcha answer! Please try again.');
+	} else {
+		// Delete the captcha, so the user will get a new one next time
+		unset($_SESSION['eatlas_captcha_question']);
+		unset($_SESSION['eatlas_captcha_answer']);
+	}
 }
 
 function _eatlas_anti_spam_contact_form_submit($form, &$form_state) {
@@ -36,6 +78,5 @@ function _eatlas_anti_spam_contact_form_submit($form, &$form_state) {
 		form_execute_handlers('submit', $form, $form_state);
 	}
 }
-
 
 ?>
