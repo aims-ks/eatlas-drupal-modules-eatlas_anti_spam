@@ -29,8 +29,8 @@ function eatlas_anti_spam_form_contact_site_form_alter(&$form, &$form_state, $fo
 	if (!isset($_SESSION['eatlas_captcha_question']) ||
 		!isset($_SESSION['eatlas_captcha_answer'])) {
 
-		$int1 = rand(10, 100);
-		$int2 = rand(10, 100);
+		$int1 = rand(1, 10);
+		$int2 = rand(1, 10);
 		$_SESSION['eatlas_captcha_question'] = t('What is @int1 plus @int2?', array(
 			'@int1' => $int1,
 			'@int2' => $int2
