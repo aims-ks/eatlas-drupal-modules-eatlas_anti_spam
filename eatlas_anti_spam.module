@@ -17,7 +17,7 @@ drupal_session_start();
  **/
 function eatlas_anti_spam_form_contact_site_form_alter(&$form, &$form_state, $form_id) {
 	// Disable cache for Captcha
-	$form['#cache'] = FALSE;
+	$form['#cache'] = ['max-age' => 0];
 
 	$form['eatlas_message_title'] = array(
 		'#type' => 'textfield',
