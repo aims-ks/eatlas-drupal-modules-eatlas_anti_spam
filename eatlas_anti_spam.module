@@ -16,6 +16,9 @@ drupal_session_start();
  *   https://api.drupal.org/api/drupal/developer%21topics%21forms_api_reference.html/7.x
  **/
 function eatlas_anti_spam_form_contact_site_form_alter(&$form, &$form_state, $form_id) {
+	// Disable cache for Captcha
+	$form['#cache'] = ['max-age' => 0];
+
 	$form['eatlas_message_title'] = array(
 		'#type' => 'textfield',
 		'#maxlength' => 20,
