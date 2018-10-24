@@ -1,6 +1,7 @@
 <?php
-// Used for captcha
-drupal_session_start();
+define('EATLAS_ANTI_SPAM_ENCRYPTION_METHOD', 'AES128'); // http://php.net/manual/en/function.openssl-get-cipher-methods.php
+define('EATLAS_ANTI_SPAM_ENCRYPTION_IV', 'Yr66d4kQEWXTAqrt'); // 128 bits
+define('EATLAS_ANTI_SPAM_ENCRYPTION_KEY', 'xqR75N[::<g>s:**p@hGr:(./Aj)4X`9@A?6AHPh"z^R6Z'); // Random password
 
 /**
  * Inspired from:
@@ -26,22 +27,36 @@ function eatlas_anti_spam_form_contact_site_form_alter(&$form, &$form_state, $fo
 		'#weight' => -1
 	);
 
-	if (!isset($_SESSION['eatlas_captcha_question']) ||
-		!isset($_SESSION['eatlas_captcha_answer'])) {
+	$captcha_question = NULL;
+	$captcha_encrypted_answer = NULL;
+	if (isset($form_state['input']['eatlas_captcha_question']) &&
+		isset($form_state['input']['eatlas_captcha_answer'])) {
 
+		$captcha_question = _eatlas_anti_spam_decrypt($form_state['input']['eatlas_captcha_question']);
+		$captcha_encrypted_answer = $form_state['input']['eatlas_captcha_answer'];
+	} else {
 		$int1 = rand(1, 10);
 		$int2 = rand(1, 10);
-		$_SESSION['eatlas_captcha_question'] = t('What is @int1 plus @int2?', array(
+		$captcha_question = t('What is @int1 plus @int2?', array(
 			'@int1' => $int1,
 			'@int2' => $int2
 		));
-		$_SESSION['eatlas_captcha_answer'] = (string)($int1 + $int2);
+		$captcha_encrypted_answer = _eatlas_anti_spam_encrypt((string)($int1 + $int2));
 	}
+	$form['eatlas_captcha_question'] = array(
+		'#type' => 'hidden',
+		'#value' => _eatlas_anti_spam_encrypt($captcha_question)
+	);
+	$form['eatlas_captcha_answer'] = array(
+		'#type' => 'hidden',
+		'#value' => $captcha_encrypted_answer
+	);
+
 	$form['eatlas_captcha'] = array(
 		'#type' => 'textfield',
 		'#maxlength' => 20,
 		'#title' => t('Captcha'),
-		'#description' => $_SESSION['eatlas_captcha_question'],
+		'#description' => $captcha_question,
 		'#required' => TRUE
 	);
 
@@ -55,20 +70,53 @@ function eatlas_anti_spam_form_contact_site_form_alter(&$form, &$form_state, $fo
 }
 
 function _eatlas_anti_spam_contact_form_validate($form, &$form_state) {
+	$captcha_answer = NULL;
+	if (isset($form_state['values']['eatlas_captcha_answer']) && !empty($form_state['values']['eatlas_captcha_answer'])) {
+		$captcha_answer = _eatlas_anti_spam_decrypt($form_state['values']['eatlas_captcha_answer']);
+	}
+
 	$captcha_value = NULL;
 	if (isset($form_state['values']['eatlas_captcha']) && !empty($form_state['values']['eatlas_captcha'])) {
 		$captcha_value = $form_state['values']['eatlas_captcha'];
 	}
 
-	if ($captcha_value !== $_SESSION['eatlas_captcha_answer']) {
-		// The user failed to answer the Captcha.
+	if (!$captcha_value || !$captcha_answer || $captcha_value !== $captcha_answer) {
+		// The user failed to answer the Captcha, or someone has been messing with the form's hidden fields.
 		// Show an error message
 		form_set_error('eatlas_captcha', 'Wrong captcha answer! Please try again.');
-	} else {
-		// Delete the captcha, so the user will get a new one next time
-		unset($_SESSION['eatlas_captcha_question']);
-		unset($_SESSION['eatlas_captcha_answer']);
 	}
+}
+
+function _eatlas_anti_spam_encrypt($value) {
+	if (!$value) {
+		return NULL;
+	}
+	$encrypted = $value;
+	if (function_exists('openssl_encrypt') && EATLAS_ANTI_SPAM_ENCRYPTION_METHOD) {
+		$encrypted = openssl_encrypt(
+			$encrypted,
+			EATLAS_ANTI_SPAM_ENCRYPTION_METHOD,
+			EATLAS_ANTI_SPAM_ENCRYPTION_KEY,
+			0,
+			EATLAS_ANTI_SPAM_ENCRYPTION_IV);
+	}
+	return base64_encode($encrypted);
+}
+
+function _eatlas_anti_spam_decrypt($value) {
+	if (!$value) {
+		return NULL;
+	}
+	$decrypted = base64_decode($value);
+	if (function_exists('openssl_decrypt') && EATLAS_ANTI_SPAM_ENCRYPTION_METHOD) {
+		$decrypted = openssl_decrypt(
+			$decrypted,
+			EATLAS_ANTI_SPAM_ENCRYPTION_METHOD,
+			EATLAS_ANTI_SPAM_ENCRYPTION_KEY,
+			0,
+			EATLAS_ANTI_SPAM_ENCRYPTION_IV);
+	}
+	return $decrypted;
 }
 
 function _eatlas_anti_spam_contact_form_submit($form, &$form_state) {
