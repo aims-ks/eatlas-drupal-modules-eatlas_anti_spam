@@ -4,4 +4,4 @@ creator = Gael Lafond
 ;   This variable is an array, one cell per element. Use "\n" for new lines.
 ;   Those properties are used with release_notes and tags.
 ;   See: https://www.drupal.org/documentation/releases/types
-Bug fixes[] = Captcha: Use form hidden fields instead of using session (session messes with Drupal and Varnish).
+Security update[] = Test deployment.
